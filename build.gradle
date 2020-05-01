@@ -1,0 +1,66 @@
+plugins {
+	id 'org.springframework.boot' version '2.2.5.RELEASE'
+	id 'io.spring.dependency-management' version '1.0.9.RELEASE'
+	id 'java'
+}
+
+group = 'ro.cater'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '1.8'
+
+configurations {
+	developmentOnly
+	runtimeClasspath {
+		extendsFrom developmentOnly
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+//	compile group: 'org.eclipse.persistence', name: 'javax.persistence', version: '2.2.0'
+	compile group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '2.2.5.RELEASE'
+
+	compile group: 'org.springframework', name: 'spring-context', version: '5.2.4.RELEASE'
+
+	implementation 'mysql:mysql-connector-java'
+    implementation 'org.springframework:spring-context'
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	testImplementation('org.springframework.boot:spring-boot-starter-test') {
+		exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
+	}
+}
+
+test {
+	useJUnitPlatform()
+}
+task copyJarToDockerDir(type: Copy) {
+	from "$buildDir/libs"
+	include "**/*.jar"
+	into "$buildDir/docker"
+}
+
+task prepareDockerDir(type: Copy) {
+	from "$projectDir/docker"
+	include "**/*"
+	filter { it.replaceAll('<%=name%>', project.name) } // makes Dockerfile more generic
+	into "$buildDir/docker"
+}
+
+task buildDockerImage(type:Exec) {
+	workingDir "$buildDir"
+	commandLine "docker", "build", "-t", "CaterGheorghe-web/${project.name}:${project.version} ", "docker"
+}
+
+task pushDockerImage(type: Exec) {
+	commandLine "docker", "push", "CaterGheorghe-web/${project.name}:${project.version}"
+}
+
+copyJarToDockerDir.dependsOn build
+buildDockerImage.dependsOn prepareDockerDir
+buildDockerImage.dependsOn copyJarToDockerDir
+pushDockerImage.dependsOn buildDockerImage
